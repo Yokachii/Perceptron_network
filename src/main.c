@@ -13,15 +13,15 @@ int main(int argc, char *argv[]) {
     char *filepath = argv[1];
 
     int nb_epoques = (argc > 2) ? atoi(argv[2]) : 1000;
-    float taux = (argc > 3) ? atof(argv[3]) : 0.1;
-    float train_ratio = (argc > 4) ? atof(argv[4]) : 1.0;
-    int normalizeArg = (argc > 5) ? atoi(argv[5]) : 0;
+    float taux = (argc > 3) ? atof(argv[3]) : 1;
+    float train_ratio = (argc > 4) ? atof(argv[4]) : 0.8;
+    int normalizeArg = (argc > 5) ? atoi(argv[5]) : 1;
     int StopWhenTrained = (argc > 6) ? atoi(argv[6]) : 0;
     int HumanOutput = (argc > 7) ? atoi(argv[7]) : 1;
     int NbPerceptrons = (argc > 8) ? atoi(argv[8]) : 10;
 
     Dataset *d = load_dataset(filepath);
-    Reseau *n = new_network(2,6,0.1,d->dim,1);
+    Reseau *n = new_network(2, 6, taux, d->dim - 1, 1);
     Dataset *tr, *tt;
     split_dataset(d,&tr,&tt,train_ratio);
     
@@ -37,9 +37,30 @@ int main(int argc, char *argv[]) {
         normalize(tr);
         normalize(tt);
     }
+    
+    float accBefore=calc_acc(n,tt);
+    if(HumanOutput==1) printf("\nAcc avant train : %f\n\n",accBefore);
 
+    int epoquesMax;
+    float maxAcc;
+    int epoques = train(n,nb_epoques,tr,tt,StopWhenTrained,&epoquesMax,&maxAcc);
 
+    MatrixConfusion *matrix = matrice_confusion(n,tt);
+
+    
     display_network(*n);
+
+    float accAfter=calc_acc(n,tt);
+    if(HumanOutput==1){
+        printf("Acc après train : %f\n\n",accAfter);
+        printf("epoquesMax : %d\nAccMax:%f\n",epoquesMax,maxAcc);
+        display_matrix(matrix);
+    }else{
+        printf("%d;%f;%f;%d;%d;%d;%d;%d;%f",epoques,accBefore,accAfter,matrix->FN,matrix->FP,matrix->TN,matrix->TP,epoquesMax,maxAcc);
+    }
+
+    
+
 
 
     

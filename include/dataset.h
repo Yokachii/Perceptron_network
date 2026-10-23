@@ -58,7 +58,7 @@ void display_dataset(Dataset p);
 /**
  * \fn float sigmoide(int z)
  */ 
-float sigmoide(int z);
+float sigmoide(float z);
 
 
 

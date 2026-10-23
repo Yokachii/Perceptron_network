@@ -136,7 +136,7 @@ Dataset *load_dataset(char *path){
 /**
  * \fn int sigmoide(int z)
  */ 
-float sigmoide(int z){
+float sigmoide(float z){
     return (1 / (1 + exp(-z)));
 }
 
@@ -220,5 +220,5 @@ void split_dataset(Dataset *d, Dataset **train, Dataset **test, float ratio){
     }
     *train=resTrain;
     *test=resTest;
-    free(d);
+    free_dataset(d);
 }

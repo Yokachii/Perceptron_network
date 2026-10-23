@@ -1,5 +1,6 @@
 #include "../include/perceptron.h"
 #include <stdlib.h>
+#include <math.h>
 
 Reseau *new_network(int nb_couche_cache, int nb_neuronnes_ch, float taux, int dimE, int dimO){
     Reseau *res = malloc(sizeof(Reseau));
@@ -8,7 +9,8 @@ Reseau *new_network(int nb_couche_cache, int nb_neuronnes_ch, float taux, int di
     
     Couche **layers = malloc(sizeof(Couche*)*(res->nb_layer));
 
-    int dimL0=dimE;
+    // int dimL0=dimE;
+    int dimL0 = nb_neuronnes_ch;
 
     Couche *entree = new_layer(dimE,taux,dimL0);
 
@@ -83,8 +85,9 @@ Couche *new_layer(int dim, float taux, int nb_neuronnes){
     for(int i = 0; i<nb_neuronnes; i++){
         float *p = malloc(sizeof(float)*dim);
 
+        float scale = sqrtf(1.0f / dim);
         for(int j = 0; j<dim; j++){
-            p[j]=0;
+            p[j] = ((float)rand() / RAND_MAX * 2.0f - 1.0f) * scale;
         }
 
         poids[i]=p;
@@ -130,6 +133,7 @@ void display_perceptron(Couche p){
     }
 };
 
+
 /**
  * \fn float* prediction(Perceptron p, float* x)
  * \brief Prediction -> calc `z = w·x + b` puis retourne `σ(z)`
@@ -153,52 +157,126 @@ float* prediction(Couche p, float* x) {
     return outputs;
 }
 
+
+float** forward_network(Reseau *net, float *input) {
+    float *current_input = input;
+    float **res = malloc(sizeof(float*)*net->nb_layer);
+
+    for (int i = 0; i < net->nb_layer; i++) {
+        current_input = prediction(*(net->Layers[i]), current_input);
+
+        res[i]=current_input;
+    }
+
+    return res; 
+}
+
+void free_forward(float **f, int s){
+    for(int i = 0; i<s; i++){
+        free(f[i]);
+    }
+    free(f);
+}
+
 /**
  * \fn void update(Perceptron *p, float *tab)
- * \brief Met à jour les poids du perceptron
+ * \brief Met à jour les poids du reseau
  *
  * \param p perceptron
  * \param tab vecteur de données
  */ 
-void update(Couche *p, float *tab) {
-    int dim = p->dim;
+void update(Reseau *n, float *tab) {
+    int nb_layers = n->nb_layer;
     
-    float *y = prediction(*p, tab);
+    float **forward_res = forward_network(n, tab);
+    
+    float label = tab[n->Layers[0]->dim]; // Recup le label de sortie voulu
 
-    for (int j = 0; j < p->nb_neuronnes; j++) {
-        float label = tab[dim - 1];
+    float **deltas = malloc(sizeof(float*) * nb_layers);
+
+    //Calcules sortie
+    int last_idx = nb_layers - 1;
+    Couche *last_layer = n->Layers[last_idx];
+    deltas[last_idx] = malloc(sizeof(float) * last_layer->nb_neuronnes);
+
+    for (int j = 0; j < last_layer->nb_neuronnes; j++) {
+        float y_pred = forward_res[last_idx][j];
         
-        float error = label - y[j];
-
-        for (int i = 0; i < dim; i++) {
-            p->poids[j][i] += (p->taux) * error * tab[i];
-        }
-
-        p->b[j] += (p->taux) * error;
+        // Formule : delta_out = (y_pred - label) * y_pred * (1 - y_pred)
+        deltas[last_idx][j] = (y_pred - label) * y_pred * (1 - y_pred);
     }
 
-    free(y);
+    for (int l = nb_layers - 2; l >= 0; l--) {
+        Couche *current_layer = n->Layers[l];
+        Couche *next_layer = n->Layers[l + 1];
+        
+        deltas[l] = malloc(sizeof(float) * current_layer->nb_neuronnes);
+
+        for (int j = 0; j < current_layer->nb_neuronnes; j++) {
+            float error_sum = 0.0f;
+            
+            // Somme des (poids de la couche suivante * delta de la couche suivante)
+            for (int k = 0; k < next_layer->nb_neuronnes; k++) {
+                error_sum += next_layer->poids[k][j] * deltas[l + 1][k];
+            }
+            
+            // Activation de ce neurone
+            float a_j = forward_res[l][j]; // +1 par rapport au décalage d'input
+            
+            // Formule : delta_hidden = (somme des erreurs) * a_j * (1 - a_j)
+            deltas[l][j] = error_sum * a_j * (1.0f - a_j);
+        }
+    }
+
+    // ----------------------------------------------------
+    // 4. Mise à jour des Poids et des Biais pour TOUTES les couches
+    // ----------------------------------------------------
+    for (int l = 0; l < nb_layers; l++) {
+        Couche *layer = n->Layers[l];
+        float lr = layer->taux;
+        float *input_l = (l == 0) ? tab : forward_res[l - 1]; // Entrées ayant servi pour cette couche
+
+        for (int j = 0; j < layer->nb_neuronnes; j++) {
+            float delta = deltas[l][j];
+
+            // Mise à jour des poids du neurone j
+            for (int i = 0; i < layer->dim; i++) {
+                layer->poids[j][i] -= lr * delta * input_l[i];
+            }
+
+            // Mise à jour du biais du neurone j
+            layer->b[j] -= lr * delta;
+        }
+    }
+
+    // ----------------------------------------------------
+    // 5. Nettoyage de la mémoire temporaire
+    // ----------------------------------------------------
+    for (int l = 0; l < nb_layers; l++) {
+        free(deltas[l]);
+    }
+    free(deltas);
+    
+    free_forward(forward_res, nb_layers);
 }
 
 
 /**
- * \fn void train(Perceptron *p, int nb_epoques, Dataset *d)
+ * \fn float train(Reseau *n, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max)
  * \brief Entraine le perceptron sur un dataset
  *
  * \param p perceptron
  * \param nb_epoques nombre de cycle
  * \param d Dataset to train on
  */ 
-float train(Couche *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max){
-    int firstEpoqueInt;
-    float firstEpoqueV;
+float train(Reseau *n, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max){
+    int firstEpoqueInt = 0, bestAccEp = 0;
+    float firstEpoqueV = -1, bestAcc = -1;
 
-    int bestAccEp;
-    float bestAcc;
     for(int i = 0; i<nb_epoques; i++){
         shuffle(d);
 
-        float acc = calc_acc(p,dt);
+        float acc = calc_acc(n,dt);
 
         if(breakIfTrained){
             // printf("Acc sur dataset de test après %d epoques : %f\n",i,acc);
@@ -221,7 +299,7 @@ float train(Couche *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrain
         }
 
         for(int j = 0; j<d->n; j++){
-            update(p,d->data[j]);
+            update(n,d->data[j]);
         }
     }
 
@@ -234,83 +312,56 @@ float train(Couche *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrain
 
 
 /**
- * \fn float calc_acc(Perceptron *p, Dataset *d)
- * \brief Calcule l'acc d'un perceptron sur un dataset donné
+ * \fn float calc_acc(Reseau *net, Dataset *d)
+ * \brief Calcule l'acc d'un reseau sur un dataset donné
  *
- * \param p perceptron
+ * \param n Reseau
  * \param d Dataset to test on
  */ 
-float calc_acc(Couche *p, Dataset *d){
-    int n = d->n;
+float calc_acc(Reseau *n, Dataset *d){
+    int nb_data = d->n;
 
-    if(d->dim != p->dim) {
-        perror("Dimension missmatch");
+    if (d->dim - 1 != n->Layers[0]->dim) {
+        printf("Dimension missmatch, dataset dim : %d ; dim de la couche 1 : %d ",d->dim,n->Layers[0]->dim);
         return -1;
     }
 
     float res = 0;
 
-    for(int i = 0; i < n; i++){
-        float *y_array = prediction(*p, d->data[i]);
+    for(int i = 0; i < nb_data; i++){
+        float **y_array_sq = forward_network(n, d->data[i]);
+        float *y_array = y_array_sq[n->nb_layer-1];
         
-        float y = y_array[p->nb_neuronnes - 1]; 
+        Couche *last_layer = n->Layers[n->nb_layer - 1];
+        float y = y_array[last_layer->nb_neuronnes - 1]; 
         
         float label = d->data[i][d->dim - 1];
         
         if((y >= 0.5 && label >= 0.5) || (y < 0.5 && label < 0.5)) {
             res += 1;
-        }
-
-        free(y_array);
+        }        
+        
+        free_forward(y_array_sq,n->nb_layer);
     }
 
-    return res / n;
+    return res / nb_data;
 }
 
 
 
-/**
- * \fn MatrixConfusion matrice_confusion(Perceptron *p, Dataset *d)
- * \brief Calcul la matrix de confusion
- *
- * \param p perceptron
- * \param d Dataset to test on
- */ 
-/**
- * \fn MatrixConfusion *matrice_confusion(Perceptron *p, Dataset *d)
- * \brief Calcule la matrice de confusion
- *
- * \param p perceptron
- * \param d Dataset to test on
- */ 
-MatrixConfusion *matrice_confusion(Couche *p, Dataset *d){
+MatrixConfusion *matrice_confusion(Reseau *net, Dataset *d){
+    MatrixConfusion *res = calloc(1, sizeof(MatrixConfusion));
+    for(int i = 0; i < d->n; i++){
+        float **fw = forward_network(net, d->data[i]);
+        float y = fw[net->nb_layer - 1][0];
+        float label = d->data[i][d->dim - 1];
+        free_forward(fw, net->nb_layer);
 
-    int n = d->n;
-    int dim = p->dim;
-    
-    MatrixConfusion *res = malloc(sizeof(MatrixConfusion));
-    if (res == NULL) return NULL;
-
-    res->FN = 0;
-    res->TN = 0;
-    res->FP = 0;
-    res->TP = 0;
-
-    for(int i = 0; i < n; i++){
-        float *y_array = prediction(*p, d->data[i]);
-        
-        float y = y_array[p->nb_neuronnes - 1]; 
-        
-        float label = d->data[i][dim - 1];
-        
-        if(y >= 0.5 && label >= 0.5) res->TP += 1;
-        else if(y >= 0.5 && label < 0.5) res->FP += 1;
-        else if(y < 0.5 && label < 0.5) res->TN += 1;
-        else if(y < 0.5 && label >= 0.5) res->FN += 1;
-
-        free(y_array);
+        if(y >= 0.5 && label >= 0.5) res->TP++;
+        else if(y >= 0.5)            res->FP++;
+        else if(label < 0.5)         res->TN++;
+        else                         res->FN++;
     }
-
     return res;
 }
 
@@ -322,6 +373,7 @@ MatrixConfusion *matrice_confusion(Couche *p, Dataset *d){
  */ 
 void display_matrix(MatrixConfusion *m){
 
+    printf("AaaaaaaaaaaaaAAAAbBBBBBB");
     printf("FP : %d\nFN : %d\nTP : %d\nTN : %d\n\n",m->FP,m->FN,m->TP,m->TN);
     
 }

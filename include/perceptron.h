@@ -45,7 +45,7 @@ Couche *new_layer(int dim, float taux, int nb_neuronnes);
  *
  * \param p Pointeur vers le perceptron à free 
  */ 
-void free_perceptron(Couche *p);
+void free_layer(Couche *p);
 
 
 /**
@@ -82,18 +82,18 @@ float *prediction(Couche p, float* x);
  * \param p perceptron
  * \param tab vecteur de données
  */ 
-void update(Couche *p, float *tab);
+void update(Reseau *n, float *tab);
 
 
 /**
- * \fn int train(Perceptron *p, int nb_epoques, Dataset *d)
+ * \fn float train(Reseau *n, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max)
  * \brief Entraine le perceptron sur un dataset
  *
  * \param p perceptron
  * \param nb_epoques nombre de cycle
  * \param d Dataset to train on
  */ 
-float train(Couche *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max);
+float train(Reseau *n, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max);
 
 
 /**
@@ -103,7 +103,7 @@ float train(Couche *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrain
  * \param p perceptron
  * \param d Dataset to test on
  */ 
-float calc_acc(Couche *p, Dataset *d);
+float calc_acc(Reseau *n, Dataset *d);
 
 
 /**
@@ -113,7 +113,7 @@ float calc_acc(Couche *p, Dataset *d);
  * \param p perceptron
  * \param d Dataset to test on
  */ 
-MatrixConfusion *matrice_confusion(Couche *p, Dataset *d);
+MatrixConfusion *matrice_confusion(Reseau *net, Dataset *d);
 
 
 /**
@@ -123,5 +123,8 @@ MatrixConfusion *matrice_confusion(Couche *p, Dataset *d);
  * \param m La matrix à afficher
  */ 
 void display_matrix(MatrixConfusion *m);
+
+
+float** forward_network(Reseau *net, float *input);
 
 #endif
