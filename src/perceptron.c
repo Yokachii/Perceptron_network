@@ -277,6 +277,8 @@ float train(Reseau *n, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrain
         shuffle(d);
 
         float acc = calc_acc(n,dt);
+        
+        printf("Epoque : %d ; Acc : %.4f\n",i,acc);
 
         if(breakIfTrained){
             // printf("Acc sur dataset de test après %d epoques : %f\n",i,acc);

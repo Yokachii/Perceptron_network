@@ -18,10 +18,10 @@ int main(int argc, char *argv[]) {
     int normalizeArg = (argc > 5) ? atoi(argv[5]) : 1;
     int StopWhenTrained = (argc > 6) ? atoi(argv[6]) : 0;
     int HumanOutput = (argc > 7) ? atoi(argv[7]) : 1;
-    int NbPerceptrons = (argc > 8) ? atoi(argv[8]) : 10;
+    int NbPerceptrons = (argc > 8) ? atoi(argv[8]) : 32;
 
     Dataset *d = load_dataset(filepath);
-    Reseau *n = new_network(2, 6, taux, d->dim - 1, 1);
+    Reseau *n = new_network(2, NbPerceptrons, taux, d->dim - 1, 1);
     Dataset *tr, *tt;
     split_dataset(d,&tr,&tt,train_ratio);
     
