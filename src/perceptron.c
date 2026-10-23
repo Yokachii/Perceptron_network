@@ -17,7 +17,7 @@ Perceptron *new_perceptron(int dim, float taux, int nb_neuronnes){
     n_perceptron->taux = taux;
     n_perceptron->nb_neuronnes = nb_neuronnes;
 
-    float *biais = malloc(sizeof(float*)*nb_neuronnes);
+    float *biais = malloc(sizeof(float)*nb_neuronnes);
 
     for(int i = 0; i<nb_neuronnes; i++){
         biais[i]=0;
@@ -26,7 +26,7 @@ Perceptron *new_perceptron(int dim, float taux, int nb_neuronnes){
     n_perceptron->b=biais;
 
 
-    float **poids = malloc(sizeof(float)*nb_neuronnes);
+    float **poids = malloc(sizeof(float*)*nb_neuronnes);
 
     for(int i = 0; i<nb_neuronnes; i++){
         float *p = malloc(sizeof(float)*dim);
@@ -38,7 +38,7 @@ Perceptron *new_perceptron(int dim, float taux, int nb_neuronnes){
         poids[i]=p;
     }
 
-    n_perceptron->b=poids;
+    n_perceptron->poids=poids;
 
     return n_perceptron;
 };
@@ -67,10 +67,10 @@ void free_perceptron(Perceptron *p){
  */ 
 void display_perceptron(Perceptron p){
     for(int j = 0; j<p.nb_neuronnes;j++){
-        int b = p.b[j];
+        float b = p.b[j];
         float taux = p.taux;
         int dim = p.dim;
-        printf("Taux : %.2f\nBiais : %.2f\nDim : %d\n[\n",taux,b,dim);
+        printf("Perceptron N°%d\nTaux : %.2f\nBiais : %.2f\nDim : %d\n[\n    ",j+1,taux,b,dim);
         for(int i = 0; i<dim; i++){
             printf("%.2f, ",p.poids[j][i]);
         }
@@ -78,124 +78,142 @@ void display_perceptron(Perceptron p){
     }
 };
 
+/**
+ * \fn float* prediction(Perceptron p, float* x)
+ * \brief Prediction -> calc `z = w·x + b` puis retourne `σ(z)`
+ *
+ * \param p perceptron
+ * \param x vecteur
+ */ 
+float* prediction(Perceptron p, float* x) {
+    float *outputs = malloc(sizeof(float) * p.nb_neuronnes);
 
-// /**
-//  * \fn int prediction(Perceptron p, int* x)
-//  * \brief Prediction -> calc `z = w·x + b` puis retourne `σ(z)`
-//  *
-//  * \param p perceptron
-//  * \param x vecteur
-//  */ 
-// float prediction(Perceptron p, float* x){
-//     int dim=p.dim;
-//     float res = 0;
-//     for(int i = 0; i<dim-1; i++){
-//         float Wi = p.poids[i];
-//         float Xi = x[i];
-//         res += Xi*Wi;
-//     }
-//     float z =res + p.b;
-//     return sigmoide(z);
-// }
+    for (int j = 0; j < p.nb_neuronnes; j++) {
+        float z = p.b[j];
+        
+        for (int i = 0; i < p.dim; i++) {
+            z += x[i] * p.poids[j][i];
+        }
+        
+        outputs[j] = sigmoide(z);
+    }
 
-// /**
-//  * \fn void update(Perceptron *p, float *tab)
-//  * \brief Met à jour les poids du perceptron
-//  *
-//  * \param p perceptron
-//  * \param tab vecteur de données
-//  */ 
-// void update(Perceptron *p, float *tab){
-//     int dim=p->dim;
-//     int label = tab[dim-1];
-//     float y = prediction(*p,tab);
-//     for(int i = 0; i<dim-1; i++){
-//         float Wi = p->poids[i];
-//         float Xi = tab[i];
-//         p->poids[i] = Wi + (p->taux)*(label - y)*Xi;
-//     }
-//     p->b = p->b + (p->taux)*(label - y);
-// }
+    return outputs;
+}
 
+/**
+ * \fn void update(Perceptron *p, float *tab)
+ * \brief Met à jour les poids du perceptron
+ *
+ * \param p perceptron
+ * \param tab vecteur de données
+ */ 
+void update(Perceptron *p, float *tab) {
+    int dim = p->dim;
+    
+    float *y = prediction(*p, tab);
 
+    for (int j = 0; j < p->nb_neuronnes; j++) {
+        float label = tab[dim - 1];
+        
+        float error = label - y[j];
 
-// /**
-//  * \fn void train(Perceptron *p, int nb_epoques, Dataset *d)
-//  * \brief Entraine le perceptron sur un dataset
-//  *
-//  * \param p perceptron
-//  * \param nb_epoques nombre de cycle
-//  * \param d Dataset to train on
-//  */ 
-// float train(Perceptron *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max){
-//     int firstEpoqueInt;
-//     float firstEpoqueV;
+        for (int i = 0; i < dim; i++) {
+            p->poids[j][i] += (p->taux) * error * tab[i];
+        }
 
-//     int bestAccEp;
-//     float bestAcc;
-//     for(int i = 0; i<nb_epoques; i++){
-//         shuffle(d);
+        p->b[j] += (p->taux) * error;
+    }
 
-//         float acc = calc_acc(p,dt);
-
-//         if(breakIfTrained){
-//             // printf("Acc sur dataset de test après %d epoques : %f\n",i,acc);
-
-//             if(acc==1) {
-//                 *acc_max=1;
-//                 *nb_epoques_max=acc;
-//                 return i;
-//             }
-//         }
-
-//         if(firstEpoqueV!=acc){
-//             firstEpoqueV=acc;
-//             firstEpoqueInt=i;
-//         }
-
-//         if(acc>bestAcc){
-//             bestAcc=acc;
-//             bestAccEp=i;
-//         }
-
-//         for(int j = 0; j<d->n; j++){
-//             update(p,d->data[j]);
-//         }
-//     }
-
-//     *acc_max=bestAcc;
-//     *nb_epoques_max=bestAccEp;
-
-//     return firstEpoqueInt;
-// }
+    free(y);
+}
 
 
+/**
+ * \fn void train(Perceptron *p, int nb_epoques, Dataset *d)
+ * \brief Entraine le perceptron sur un dataset
+ *
+ * \param p perceptron
+ * \param nb_epoques nombre de cycle
+ * \param d Dataset to train on
+ */ 
+float train(Perceptron *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max){
+    int firstEpoqueInt;
+    float firstEpoqueV;
 
-// /**
-//  * \fn float calc_acc(Perceptron *p, Dataset *d)
-//  * \brief Calcule l'acc d'un perceptron sur un dataset donné
-//  *
-//  * \param p perceptron
-//  * \param d Dataset to test on
-//  */ 
-// float calc_acc(Perceptron *p, Dataset *d){
-//     int n = d->n;
+    int bestAccEp;
+    float bestAcc;
+    for(int i = 0; i<nb_epoques; i++){
+        shuffle(d);
 
-//     if(d->dim != p->dim) {
-//         perror("Dimension missmatch");
-//         return -1;
-//     }
+        float acc = calc_acc(p,dt);
 
-//     float res = 0;
+        if(breakIfTrained){
+            // printf("Acc sur dataset de test après %d epoques : %f\n",i,acc);
 
-//     for(int i = 0; i<n; i++){
-//         float y = prediction(*p,d->data[i]);
-//         float label = d->data[i][d->dim-1];
-//         if((y>=0.5 && label>=0.5) || (y<0.5 && label<0.5)) res+=1;
-//     }
+            if(acc==1) {
+                *acc_max=1;
+                *nb_epoques_max=acc;
+                return i;
+            }
+        }
 
-//     return res/n;
-// }
+        if(firstEpoqueV!=acc){
+            firstEpoqueV=acc;
+            firstEpoqueInt=i;
+        }
+
+        if(acc>bestAcc){
+            bestAcc=acc;
+            bestAccEp=i;
+        }
+
+        for(int j = 0; j<d->n; j++){
+            update(p,d->data[j]);
+        }
+    }
+
+    *acc_max=bestAcc;
+    *nb_epoques_max=bestAccEp;
+
+    return firstEpoqueInt;
+}
+
+
+
+/**
+ * \fn float calc_acc(Perceptron *p, Dataset *d)
+ * \brief Calcule l'acc d'un perceptron sur un dataset donné
+ *
+ * \param p perceptron
+ * \param d Dataset to test on
+ */ 
+float calc_acc(Perceptron *p, Dataset *d){
+    int n = d->n;
+
+    if(d->dim != p->dim) {
+        perror("Dimension missmatch");
+        return -1;
+    }
+
+    float res = 0;
+
+    for(int i = 0; i < n; i++){
+        float *y_array = prediction(*p, d->data[i]);
+        
+        float y = y_array[p->nb_neuronnes - 1]; 
+        
+        float label = d->data[i][d->dim - 1];
+        
+        if((y >= 0.5 && label >= 0.5) || (y < 0.5 && label < 0.5)) {
+            res += 1;
+        }
+
+        free(y_array);
+    }
+
+    return res / n;
+}
 
 
 

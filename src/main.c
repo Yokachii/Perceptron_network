@@ -6,5 +6,7 @@ int main(int argc, char *argv[]) {
 
     Perceptron *p = new_perceptron(3,0.1,4);
 
+    display_perceptron(*p);
+
     free_perceptron(p);
 }

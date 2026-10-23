@@ -8,7 +8,7 @@
 
 typedef struct perceptron_s
 {
-    int *b;
+    float *b;
     int dim;
     float taux;
     float **poids;
@@ -46,45 +46,45 @@ void free_perceptron(Perceptron *p);
 void display_perceptron(Perceptron p);
 
 
-// /**
-//  * \fn int prediction(Perceptron p, int* x)
-//  * \brief Prediction
-//  *
-//  * \param p perceptron
-//  * \param x vecteur
-//  */ 
-// float prediction(Perceptron p, float* x);
+/**
+ * \fn int prediction(Perceptron p, int* x)
+ * \brief Prediction
+ *
+ * \param p perceptron
+ * \param x vecteur
+ */ 
+float *prediction(Perceptron p, float* x);
 
 
-// /**
-//  * \fn void update(Perceptron *p, float *tab)
-//  * \brief Met à jour les poids du perceptron
-//  *
-//  * \param p perceptron
-//  * \param tab vecteur de données
-//  */ 
-// void update(Perceptron *p, float *tab);
+/**
+ * \fn void update(Perceptron *p, float *tab)
+ * \brief Met à jour les poids du perceptron
+ *
+ * \param p perceptron
+ * \param tab vecteur de données
+ */ 
+void update(Perceptron *p, float *tab);
 
 
-// /**
-//  * \fn int train(Perceptron *p, int nb_epoques, Dataset *d)
-//  * \brief Entraine le perceptron sur un dataset
-//  *
-//  * \param p perceptron
-//  * \param nb_epoques nombre de cycle
-//  * \param d Dataset to train on
-//  */ 
-// float train(Perceptron *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max);
+/**
+ * \fn int train(Perceptron *p, int nb_epoques, Dataset *d)
+ * \brief Entraine le perceptron sur un dataset
+ *
+ * \param p perceptron
+ * \param nb_epoques nombre de cycle
+ * \param d Dataset to train on
+ */ 
+float train(Perceptron *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max);
 
 
-// /**
-//  * \fn float calc_acc(Perceptron *p, Dataset *d)
-//  * \brief Calcule l'acc d'un perceptron sur un dataset donné
-//  *
-//  * \param p perceptron
-//  * \param d Dataset to test on
-//  */ 
-// float calc_acc(Perceptron *p, Dataset *d);
+/**
+ * \fn float calc_acc(Perceptron *p, Dataset *d)
+ * \brief Calcule l'acc d'un perceptron sur un dataset donné
+ *
+ * \param p perceptron
+ * \param d Dataset to test on
+ */ 
+float calc_acc(Perceptron *p, Dataset *d);
 
 
 // /**
