@@ -1,6 +1,58 @@
 #include "../include/perceptron.h"
 #include <stdlib.h>
 
+Reseau *new_network(int nb_couche_cache, int nb_neuronnes_ch, float taux, int dimE, int dimO){
+    Reseau *res = malloc(sizeof(Reseau));
+
+    res->nb_layer=2+nb_couche_cache;
+    
+    Couche **layers = malloc(sizeof(Couche*)*(res->nb_layer));
+
+    int dimL0=dimE;
+
+    Couche *entree = new_layer(dimE,taux,dimL0);
+
+    layers[0] = entree;
+
+    for(int i = 0; i<nb_couche_cache;i++){
+        int dimL = nb_neuronnes_ch;
+        if(i==0) dimL=dimL0;
+        printf("DimL : %d, I : %d\n",dimL,i);
+        Couche *l = new_layer(dimL,taux,nb_neuronnes_ch);
+        layers[i+1] = l;
+    }
+
+    Couche *out = new_layer(nb_neuronnes_ch,taux,dimO);
+
+    layers[res->nb_layer-1] = out;
+
+    res->Layers=layers;
+
+    return res;
+}
+
+void display_network(Reseau n){
+    printf("Taux : %.2f\n",n.Layers[0]->taux);
+    printf("\nCouche d'entré :\n");
+    display_perceptron(*(n.Layers[0]));
+    printf("\n\n");
+    for(int i = 0; i<n.nb_layer-2;i++){
+        printf("Couche N°%d (de %d neuronnes):\n",i+1,n.Layers[0]->nb_neuronnes);
+        display_perceptron(*(n.Layers[i+1]));
+        printf("\n\n");
+    }
+    printf("Couche de sortie :\n");
+    display_perceptron(*(n.Layers[n.nb_layer-1]));
+    
+}
+
+void free_network(Reseau *n){
+    for(int i = 0;i<n->nb_layer;i++){
+        free_layer(n->Layers[i]);
+    }
+    free(n);
+}
+
 /**
  * \fn int new_perceptron(int dim, int taux) 
  * \brief Initialise un perceptron
@@ -9,8 +61,8 @@
  * \param n nombre de données 
  * \return pointeur vers le nouveau perceptron
  */ 
-Perceptron *new_perceptron(int dim, float taux, int nb_neuronnes){
-    Perceptron *n_perceptron = malloc(sizeof(Perceptron));
+Couche *new_layer(int dim, float taux, int nb_neuronnes){
+    Couche *n_perceptron = malloc(sizeof(Couche));
 
     n_perceptron->b = 0;
     n_perceptron->dim = dim;
@@ -45,12 +97,12 @@ Perceptron *new_perceptron(int dim, float taux, int nb_neuronnes){
 
 
 /**
- * \fn void free_perceptron(Perceptron *p)
+ * \fn void free_layer(Perceptron *p)
  * \brief Libère un perceptron
  *
  * \param p Pointeur vers le perceptron à free 
  */ 
-void free_perceptron(Perceptron *p){
+void free_layer(Couche *p){
     int nb_neuronnes = p->nb_neuronnes;
     for(int i = 0;i<nb_neuronnes;i++){
         free(p->poids[i]);
@@ -65,12 +117,12 @@ void free_perceptron(Perceptron *p){
  *
  * \param p Perceptron à afficher
  */ 
-void display_perceptron(Perceptron p){
+void display_perceptron(Couche p){
+    printf("Dim : %d\n",p.dim);
     for(int j = 0; j<p.nb_neuronnes;j++){
         float b = p.b[j];
-        float taux = p.taux;
         int dim = p.dim;
-        printf("Perceptron N°%d\nTaux : %.2f\nBiais : %.2f\nDim : %d\n[\n    ",j+1,taux,b,dim);
+        printf("Perceptron N°%d\nBiais : %.2f\n[\n    ",j+1,b);
         for(int i = 0; i<dim; i++){
             printf("%.2f, ",p.poids[j][i]);
         }
@@ -85,7 +137,7 @@ void display_perceptron(Perceptron p){
  * \param p perceptron
  * \param x vecteur
  */ 
-float* prediction(Perceptron p, float* x) {
+float* prediction(Couche p, float* x) {
     float *outputs = malloc(sizeof(float) * p.nb_neuronnes);
 
     for (int j = 0; j < p.nb_neuronnes; j++) {
@@ -108,7 +160,7 @@ float* prediction(Perceptron p, float* x) {
  * \param p perceptron
  * \param tab vecteur de données
  */ 
-void update(Perceptron *p, float *tab) {
+void update(Couche *p, float *tab) {
     int dim = p->dim;
     
     float *y = prediction(*p, tab);
@@ -137,7 +189,7 @@ void update(Perceptron *p, float *tab) {
  * \param nb_epoques nombre de cycle
  * \param d Dataset to train on
  */ 
-float train(Perceptron *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max){
+float train(Couche *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max){
     int firstEpoqueInt;
     float firstEpoqueV;
 
@@ -188,7 +240,7 @@ float train(Perceptron *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfT
  * \param p perceptron
  * \param d Dataset to test on
  */ 
-float calc_acc(Perceptron *p, Dataset *d){
+float calc_acc(Couche *p, Dataset *d){
     int n = d->n;
 
     if(d->dim != p->dim) {
@@ -217,49 +269,59 @@ float calc_acc(Perceptron *p, Dataset *d){
 
 
 
-// /**
-//  * \fn MatrixConfusion matrice_confusion(Perceptron *p, Dataset *d)
-//  * \brief Calcul la matrix de confusion
-//  *
-//  * \param p perceptron
-//  * \param d Dataset to test on
-//  */ 
-// MatrixConfusion *matrice_confusion(Perceptron *p, Dataset *d){
+/**
+ * \fn MatrixConfusion matrice_confusion(Perceptron *p, Dataset *d)
+ * \brief Calcul la matrix de confusion
+ *
+ * \param p perceptron
+ * \param d Dataset to test on
+ */ 
+/**
+ * \fn MatrixConfusion *matrice_confusion(Perceptron *p, Dataset *d)
+ * \brief Calcule la matrice de confusion
+ *
+ * \param p perceptron
+ * \param d Dataset to test on
+ */ 
+MatrixConfusion *matrice_confusion(Couche *p, Dataset *d){
 
-//     int n = d->n;
-//     int dim =p->dim;
+    int n = d->n;
+    int dim = p->dim;
     
-//     MatrixConfusion *res = malloc(sizeof(MatrixConfusion));
+    MatrixConfusion *res = malloc(sizeof(MatrixConfusion));
+    if (res == NULL) return NULL;
 
-//     res->FN=0;
-//     res->TN=0;
-//     res->FP=0;
-//     res->TP=0;
+    res->FN = 0;
+    res->TN = 0;
+    res->FP = 0;
+    res->TP = 0;
 
+    for(int i = 0; i < n; i++){
+        float *y_array = prediction(*p, d->data[i]);
+        
+        float y = y_array[p->nb_neuronnes - 1]; 
+        
+        float label = d->data[i][dim - 1];
+        
+        if(y >= 0.5 && label >= 0.5) res->TP += 1;
+        else if(y >= 0.5 && label < 0.5) res->FP += 1;
+        else if(y < 0.5 && label < 0.5) res->TN += 1;
+        else if(y < 0.5 && label >= 0.5) res->FN += 1;
 
-//     for(int i = 0; i<n; i++){
-//         float y = prediction(*p,d->data[i]);
-//         float label = d->data[i][dim-1];
-//         if(y>=0.5 && label>=0.5) res->TP+=1;
-//         if(y>=0.5 && label<0.5) res->FP+=1;
-//         if(y<0.5 && label<0.5) res->TN+=1;
-//         if(y<0.5 && label>=0.5) res->FN+=1;
-//     }
+        free(y_array);
+    }
 
-//     return res;
+    return res;
+}
+
+/**
+ * \fn void display_matrix(MatrixConfusion m)
+ * \brief Affiche la matrix de confusion
+ *
+ * \param m La matrix à afficher
+ */ 
+void display_matrix(MatrixConfusion *m){
+
+    printf("FP : %d\nFN : %d\nTP : %d\nTN : %d\n\n",m->FP,m->FN,m->TP,m->TN);
     
-// }
-
-
-
-// /**
-//  * \fn void display_matrix(MatrixConfusion m)
-//  * \brief Affiche la matrix de confusion
-//  *
-//  * \param m La matrix à afficher
-//  */ 
-// void display_matrix(MatrixConfusion *m){
-
-//     printf("FP : %d\nFN : %d\nTP : %d\nTN : %d\n\n",m->FP,m->FN,m->TP,m->TN);
-    
-// }
+}

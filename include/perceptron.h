@@ -6,17 +6,27 @@
 
 #include "dataset.h"
 
-typedef struct perceptron_s
+typedef struct couche_s
 {
     float *b;
     int dim;
     float taux;
     float **poids;
     int nb_neuronnes;
-} Perceptron;
+} Couche;
+
+typedef struct reseau_s {
+    int nb_layer;
+    Couche **Layers;
+} Reseau;
 
 
 
+void free_network(Reseau *n);
+
+void display_network(Reseau n);
+
+Reseau *new_network(int nb_couche_cache, int nb_neuronnes_ch, float taux, int dimE, int dimO);
 
 /**
  * \fn perceptron *new_perceptron(int dim, int taux) 
@@ -26,7 +36,7 @@ typedef struct perceptron_s
  * \param taux taux d'apprentissage 
  * \return pointeur vers le nouveau perceptron
  */ 
-Perceptron *new_perceptron(int dim, float taux, int nb_neuronnes);
+Couche *new_layer(int dim, float taux, int nb_neuronnes);
 
 
 /**
@@ -35,7 +45,16 @@ Perceptron *new_perceptron(int dim, float taux, int nb_neuronnes);
  *
  * \param p Pointeur vers le perceptron à free 
  */ 
-void free_perceptron(Perceptron *p);
+void free_perceptron(Couche *p);
+
+
+/**
+ * \fn void free_layer(Perceptron *p)
+ * \brief Libère un perceptron
+ *
+ * \param p Pointeur vers le perceptron à free 
+ */ 
+void free_layer(Couche *p);
 
 /**
  * \fn void *display_perceptron(Perceptron p)
@@ -43,7 +62,7 @@ void free_perceptron(Perceptron *p);
  *
  * \param p Perceptron à afficher
  */ 
-void display_perceptron(Perceptron p);
+void display_perceptron(Couche p);
 
 
 /**
@@ -53,7 +72,7 @@ void display_perceptron(Perceptron p);
  * \param p perceptron
  * \param x vecteur
  */ 
-float *prediction(Perceptron p, float* x);
+float *prediction(Couche p, float* x);
 
 
 /**
@@ -63,7 +82,7 @@ float *prediction(Perceptron p, float* x);
  * \param p perceptron
  * \param tab vecteur de données
  */ 
-void update(Perceptron *p, float *tab);
+void update(Couche *p, float *tab);
 
 
 /**
@@ -74,7 +93,7 @@ void update(Perceptron *p, float *tab);
  * \param nb_epoques nombre de cycle
  * \param d Dataset to train on
  */ 
-float train(Perceptron *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max);
+float train(Couche *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max);
 
 
 /**
@@ -84,25 +103,25 @@ float train(Perceptron *p, int nb_epoques, Dataset *d, Dataset *dt, int breakIfT
  * \param p perceptron
  * \param d Dataset to test on
  */ 
-float calc_acc(Perceptron *p, Dataset *d);
+float calc_acc(Couche *p, Dataset *d);
 
 
-// /**
-//  * \fn MatrixConfusion matrice_confusion(Perceptron *p, Dataset *d)
-//  * \brief Calcul la matrix de confusion
-//  *
-//  * \param p perceptron
-//  * \param d Dataset to test on
-//  */ 
-// MatrixConfusion *matrice_confusion(Perceptron *p, Dataset *d);
+/**
+ * \fn MatrixConfusion matrice_confusion(Perceptron *p, Dataset *d)
+ * \brief Calcul la matrix de confusion
+ *
+ * \param p perceptron
+ * \param d Dataset to test on
+ */ 
+MatrixConfusion *matrice_confusion(Couche *p, Dataset *d);
 
 
-// /**
-//  * \fn void display_matrix(MatrixConfusion m)
-//  * \brief Affiche la matrix de confusion
-//  *
-//  * \param m La matrix à afficher
-//  */ 
-// void display_matrix(MatrixConfusion *m);
+/**
+ * \fn void display_matrix(MatrixConfusion m)
+ * \brief Affiche la matrix de confusion
+ *
+ * \param m La matrix à afficher
+ */ 
+void display_matrix(MatrixConfusion *m);
 
 #endif

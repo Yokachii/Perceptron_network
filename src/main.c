@@ -4,9 +4,49 @@
 
 int main(int argc, char *argv[]) {
 
-    Perceptron *p = new_perceptron(3,0.1,4);
+    if (argc<2) {
+        fprintf(stderr, "Usage: %s <dataset_path> <nb_epoques (Optionel)> <learning_rate (Optionel)> <train_ratio (Optional)> <normalize (Optional)> <StopWhenTrained> <HumanOutput>\n", argv[0]);
+        fprintf(stderr, "Example: %s ./data/champignons.csv 1000 0.1 1 0\n", argv[0]);
+        return 1;
+    }
 
-    display_perceptron(*p);
+    char *filepath = argv[1];
 
-    free_perceptron(p);
+    int nb_epoques = (argc > 2) ? atoi(argv[2]) : 1000;
+    float taux = (argc > 3) ? atof(argv[3]) : 0.1;
+    float train_ratio = (argc > 4) ? atof(argv[4]) : 1.0;
+    int normalizeArg = (argc > 5) ? atoi(argv[5]) : 0;
+    int StopWhenTrained = (argc > 6) ? atoi(argv[6]) : 0;
+    int HumanOutput = (argc > 7) ? atoi(argv[7]) : 1;
+    int NbPerceptrons = (argc > 8) ? atoi(argv[8]) : 10;
+
+    Dataset *d = load_dataset(filepath);
+    Reseau *n = new_network(2,6,0.1,d->dim,1);
+    Dataset *tr, *tt;
+    split_dataset(d,&tr,&tt,train_ratio);
+    
+    int isFreed = 0;
+    
+    if(tt->n==0){
+        free_dataset(tt);
+        tt=tr;
+        isFreed=1;
+    }
+    
+    if(normalizeArg==1){
+        normalize(tr);
+        normalize(tt);
+    }
+
+
+    display_network(*n);
+
+
+    
+    if(isFreed==0){
+        free_dataset(tt);
+    }
+
+    free_network(n);
+    free_dataset(tr);
 }
