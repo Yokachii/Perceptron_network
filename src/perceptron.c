@@ -178,6 +178,26 @@ void free_forward(float **f, int s){
     free(f);
 }
 
+static float calc_loss(Reseau *n, Dataset *d){
+    float loss = 0;
+    for(int i = 0; i < d->n; i++){
+        float **fw = forward_network(n, d->data[i]);
+        float p = fw[n->nb_layer - 1][0];
+        float y = d->data[i][d->dim - 1];
+        free_forward(fw, n->nb_layer);
+
+        if(p < 1e-7f) p = 1e-7f;               // évite log(0)
+        if(p > 1.0f - 1e-7f) p = 1.0f - 1e-7f;
+
+        loss -= y * logf(p) + (1.0f - y) * logf(1.0f - p);
+    }
+    return loss / d->n;
+}
+
+static void set_taux(Reseau *n, float taux){
+    for(int l = 0; l < n->nb_layer; l++) n->Layers[l]->taux = taux;
+}
+
 /**
  * \fn void update(Perceptron *p, float *tab)
  * \brief Met à jour les poids du reseau
@@ -190,7 +210,7 @@ void update(Reseau *n, float *tab) {
     
     float **forward_res = forward_network(n, tab);
     
-    float label = tab[n->Layers[0]->dim]; // Recup le label de sortie voulu
+    float label = tab[n->Layers[0]->dim]; // Label de sortie
 
     float **deltas = malloc(sizeof(float*) * nb_layers);
 
@@ -202,8 +222,8 @@ void update(Reseau *n, float *tab) {
     for (int j = 0; j < last_layer->nb_neuronnes; j++) {
         float y_pred = forward_res[last_idx][j];
         
-        // Formule : delta_out = (y_pred - label) * y_pred * (1 - y_pred)
-        deltas[last_idx][j] = (y_pred - label) * y_pred * (1 - y_pred);
+        // deltas[last_idx][j] = (y_pred - label) * y_pred * (1 - y_pred);
+        deltas[last_idx][j] = (y_pred - label);
     }
 
     for (int l = nb_layers - 2; l >= 0; l--) {
@@ -215,43 +235,34 @@ void update(Reseau *n, float *tab) {
         for (int j = 0; j < current_layer->nb_neuronnes; j++) {
             float error_sum = 0.0f;
             
-            // Somme des (poids de la couche suivante * delta de la couche suivante)
             for (int k = 0; k < next_layer->nb_neuronnes; k++) {
                 error_sum += next_layer->poids[k][j] * deltas[l + 1][k];
             }
             
-            // Activation de ce neurone
-            float a_j = forward_res[l][j]; // +1 par rapport au décalage d'input
-            
-            // Formule : delta_hidden = (somme des erreurs) * a_j * (1 - a_j)
-            deltas[l][j] = error_sum * a_j * (1.0f - a_j);
+            float r_j = forward_res[l][j];
+
+            deltas[l][j] = error_sum * r_j * (1.0f - r_j);
         }
     }
-
-    // ----------------------------------------------------
-    // 4. Mise à jour des Poids et des Biais pour TOUTES les couches
-    // ----------------------------------------------------
+    
     for (int l = 0; l < nb_layers; l++) {
         Couche *layer = n->Layers[l];
         float lr = layer->taux;
-        float *input_l = (l == 0) ? tab : forward_res[l - 1]; // Entrées ayant servi pour cette couche
+        float *input_l = (l == 0) ? tab : forward_res[l - 1]; // Entrées de la couche
 
         for (int j = 0; j < layer->nb_neuronnes; j++) {
             float delta = deltas[l][j];
 
-            // Mise à jour des poids du neurone j
+            // Mise à jour des poids
             for (int i = 0; i < layer->dim; i++) {
                 layer->poids[j][i] -= lr * delta * input_l[i];
             }
 
-            // Mise à jour du biais du neurone j
-            layer->b[j] -= lr * delta;
+            
+            layer->b[j] -= lr * delta;// Mise à jour du biais
         }
     }
 
-    // ----------------------------------------------------
-    // 5. Nettoyage de la mémoire temporaire
-    // ----------------------------------------------------
     for (int l = 0; l < nb_layers; l++) {
         free(deltas[l]);
     }
@@ -273,40 +284,45 @@ float train(Reseau *n, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrain
     int firstEpoqueInt = 0, bestAccEp = 0;
     float firstEpoqueV = -1, bestAcc = -1;
 
-    for(int i = 0; i<nb_epoques; i++){
+    float taux0 = n->Layers[0]->taux;
+    float k = (nb_epoques > 0) ? 3.0f / nb_epoques : 0.0f; // Decroitre le taux pour affiner la précision
+
+    for(int i = 0; i < nb_epoques; i++){
+        set_taux(n, taux0 / (1.0f + k * i));
         shuffle(d);
 
-        float acc = calc_acc(n,dt);
-        
-        printf("Epoque : %d ; Acc : %.4f\n",i,acc);
+        float acc = calc_acc(n, dt);
 
-        if(breakIfTrained){
-            // printf("Acc sur dataset de test après %d epoques : %f\n",i,acc);
-
-            if(acc==1) {
-                *acc_max=1;
-                *nb_epoques_max=acc;
-                return i;
-            }
+        if(i % 10 == 0){
+            printf("Epoque : %d ; Acc : %.4f ; Loss : %.4f ; taux : %.4f\n",
+                   i, acc, calc_loss(n, dt), n->Layers[0]->taux);
         }
 
-        if(firstEpoqueV!=acc){
-            firstEpoqueV=acc;
-            firstEpoqueInt=i;
+        if(breakIfTrained && acc == 1){
+            *acc_max = 1;
+            *nb_epoques_max = i;
+            set_taux(n, taux0);
+            return i;
         }
 
-        if(acc>bestAcc){
-            bestAcc=acc;
-            bestAccEp=i;
+        if(firstEpoqueV != acc){
+            firstEpoqueV = acc;
+            firstEpoqueInt = i;
         }
 
-        for(int j = 0; j<d->n; j++){
-            update(n,d->data[j]);
+        if(acc > bestAcc){
+            bestAcc = acc;
+            bestAccEp = i;
+        }
+
+        for(int j = 0; j < d->n; j++){
+            update(n, d->data[j]);
         }
     }
 
-    *acc_max=bestAcc;
-    *nb_epoques_max=bestAccEp;
+    set_taux(n, taux0);
+    *acc_max = bestAcc;
+    *nb_epoques_max = bestAccEp;
 
     return firstEpoqueInt;
 }
@@ -375,7 +391,6 @@ MatrixConfusion *matrice_confusion(Reseau *net, Dataset *d){
  */ 
 void display_matrix(MatrixConfusion *m){
 
-    printf("AaaaaaaaaaaaaAAAAbBBBBBB");
     printf("FP : %d\nFN : %d\nTP : %d\nTN : %d\n\n",m->FP,m->FN,m->TP,m->TN);
     
 }

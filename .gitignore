@@ -1,0 +1,11 @@
+*.o
+
+perceptron
+*.out
+*.exe
+
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/

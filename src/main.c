@@ -1,8 +1,14 @@
 #include "../include/dataset.h"
 #include "../include/perceptron.h"
 #include <stdlib.h>
+#include <time.h>
+
+
+
 
 int main(int argc, char *argv[]) {
+
+    srand(time(NULL));
 
     if (argc<2) {
         fprintf(stderr, "Usage: %s <dataset_path> <nb_epoques (Optionel)> <learning_rate (Optionel)> <train_ratio (Optional)> <normalize (Optional)> <StopWhenTrained> <HumanOutput>\n", argv[0]);
