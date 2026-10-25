@@ -93,7 +93,7 @@ void update(Reseau *n, float *tab);
  * \param nb_epoques nombre de cycle
  * \param d Dataset to train on
  */ 
-float train(Reseau *n, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max);
+float train(Reseau *n, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max, int humanOutput);
 
 
 /**

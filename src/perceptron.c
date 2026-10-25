@@ -19,7 +19,6 @@ Reseau *new_network(int nb_couche_cache, int nb_neuronnes_ch, float taux, int di
     for(int i = 0; i<nb_couche_cache;i++){
         int dimL = nb_neuronnes_ch;
         if(i==0) dimL=dimL0;
-        printf("DimL : %d, I : %d\n",dimL,i);
         Couche *l = new_layer(dimL,taux,nb_neuronnes_ch);
         layers[i+1] = l;
     }
@@ -236,7 +235,7 @@ void update(Reseau *n, float *tab) {
             float error_sum = 0.0f;
             
             for (int k = 0; k < next_layer->nb_neuronnes; k++) {
-                error_sum += next_layer->poids[k][j] * deltas[l + 1][k];
+                error_sum += next_layer->poids[k][j] * deltas[l + 1][k];  // Formule du calcule de l'erreur
             }
             
             float r_j = forward_res[l][j];
@@ -280,39 +279,41 @@ void update(Reseau *n, float *tab) {
  * \param nb_epoques nombre de cycle
  * \param d Dataset to train on
  */ 
-float train(Reseau *n, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max){
-    int firstEpoqueInt = 0, bestAccEp = 0;
-    float firstEpoqueV = -1, bestAcc = -1;
+float train(Reseau *n, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrained, int *nb_epoques_max, float *acc_max, int humanOutput){
+    int bestAccEp = 0;
+    float bestAcc = -1;
 
     float taux0 = n->Layers[0]->taux;
-    float k = (nb_epoques > 0) ? 3.0f / nb_epoques : 0.0f; // Decroitre le taux pour affiner la précision
+    float k = (nb_epoques > 0) ? 3.0f / nb_epoques : 0.0f; // décroissance du taux
 
-    for(int i = 0; i < nb_epoques; i++){
+    int i;
+    for(i = 0; i < nb_epoques; i++){
         set_taux(n, taux0 / (1.0f + k * i));
         shuffle(d);
 
         float acc = calc_acc(n, dt);
 
-        if(i % 10 == 0){
-            printf("Epoque : %d ; Acc : %.4f ; Loss : %.4f ; taux : %.4f\n",
-                   i, acc, calc_loss(n, dt), n->Layers[0]->taux);
-        }
-
-        if(breakIfTrained && acc == 1){
-            *acc_max = 1;
-            *nb_epoques_max = i;
-            set_taux(n, taux0);
-            return i;
-        }
-
-        if(firstEpoqueV != acc){
-            firstEpoqueV = acc;
-            firstEpoqueInt = i;
-        }
-
         if(acc > bestAcc){
             bestAcc = acc;
             bestAccEp = i;
+        }
+
+        if(humanOutput){
+            if(i % 100 == 0){
+                printf("Epoque : %d ; Acc : %.4f ; Loss : %.4f ; taux : %.4f\n",
+                       i, acc, calc_loss(n, dt), n->Layers[0]->taux);
+            }
+        }else if(i % 10 == 0){
+            // #EP;epoque;taux;acc;accMax;epoqueMax;TP;FP;TN;FN
+            MatrixConfusion *m = matrice_confusion(n, dt);
+            printf("#EP;%d;%.5f;%.4f;%.4f;%d;%d;%d;%d;%d\n",
+                   i, n->Layers[0]->taux, acc, bestAcc, bestAccEp,
+                   m->TP, m->FP, m->TN, m->FN);
+            free(m);
+        }
+
+        if(breakIfTrained && acc == 1){
+            break;
         }
 
         for(int j = 0; j < d->n; j++){
@@ -324,7 +325,7 @@ float train(Reseau *n, int nb_epoques, Dataset *d, Dataset *dt, int breakIfTrain
     *acc_max = bestAcc;
     *nb_epoques_max = bestAccEp;
 
-    return firstEpoqueInt;
+    return i;   // nombre d'époques réellement exécutées
 }
 
 
