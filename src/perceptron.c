@@ -221,7 +221,7 @@ void update(Reseau *n, float *tab) {
     for (int j = 0; j < last_layer->nb_neuronnes; j++) {
         float y_pred = forward_res[last_idx][j];
         
-        // deltas[last_idx][j] = (y_pred - label) * y_pred * (1 - y_pred);
+        // deltas[last_idx][j] = (y_pred - label) * y_pred * (1 - y_pred); <- problème, si le resaux se trompe complet, l'apprentissage arrète presque completement
         deltas[last_idx][j] = (y_pred - label);
     }
 

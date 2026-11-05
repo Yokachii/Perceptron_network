@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
     int NbCouches = (argc > 9) ? atoi(argv[9]) : 2;
     unsigned int seed = (argc > 10) ? (unsigned int)strtoul(argv[10], NULL, 10) : (unsigned int)time(NULL);
 
-    srand(seed);   // avant new_network, qui tire les poids initiaux
+    srand(seed);   // avant new_network, qui choisie les poids initiaux
     if(HumanOutput==1) printf("Graine : %u\n", seed);
 
     Dataset *d = load_dataset(filepath);
